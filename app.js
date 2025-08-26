@@ -693,12 +693,16 @@ function renderActivityPhotos(activity) {
     if (container) {
         const activityEscaped = activity.replace(/'/g, "\\'");
         container.innerHTML = photos.map((photo, index) => `
-            <div class="activity-photo-item">
+            <div class="activity-photo-item" onclick="openPhotoPreview('${activityEscaped}', ${index}, '${photo}')">
                 <img src="${photo}" alt="Photo">
-                <button class="activity-photo-remove" 
-                        onclick="removeActivityPhoto('${activityEscaped}', ${index})">×</button>
+                <div class="photo-overlay">
+                    <span class="photo-view-icon">👁</span>
+                </div>
             </div>
         `).join('');
+        
+        // Fix desktop photo preview after rendering
+        setTimeout(fixDesktopPhotoPreview, 100);
     }
 }
 
@@ -714,6 +718,7 @@ window.removeActivityPhoto = async function(activity, index) {
     await saveToFirestore(junctionId);
     showToast('Photo removed', 'success');
 }
+
 // Update Status Counts
 function updateStatusCounts() {
     const completedEl = document.getElementById('completedCount');
@@ -1634,12 +1639,11 @@ window.addEventListener('beforeunload', () => {
 // Global variable to track current activity
 let currentPhotoActivity = null;
 
-// Show photo options modal
+// Updated showPhotoOptions with better desktop support
 window.showPhotoOptions = function(activity) {
     // Check if device is mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     ('ontouchstart' in window) || 
-                     (window.innerWidth <= 768);
+                     ('ontouchstart' in window && window.innerWidth <= 768);
     
     if (isMobile) {
         // Show modal for mobile
@@ -1656,6 +1660,114 @@ window.showPhotoOptions = function(activity) {
         }
     }
 }
+
+// Photo preview variables
+let currentPreviewActivity = null;
+let currentPreviewIndex = null;
+
+// Open photo preview
+window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
+    currentPreviewActivity = activity;
+    currentPreviewIndex = photoIndex;
+    
+    const modal = document.getElementById('photoPreviewModal');
+    const image = document.getElementById('photoPreviewImage');
+    
+    if (modal && image) {
+        image.src = photoSrc;
+        modal.style.display = 'block';
+    }
+}
+
+// Close photo preview
+window.closePhotoPreview = function() {
+    const modal = document.getElementById('photoPreviewModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    
+    // Also close any open confirmation modal
+    const confirmModal = document.getElementById('deleteConfirmationModal');
+    if (confirmModal) {
+        confirmModal.style.display = 'none';
+    }
+    
+    currentPreviewActivity = null;
+    currentPreviewIndex = null;
+}
+
+// Confirm photo delete - improved version
+window.confirmPhotoDelete = function() {
+    console.log('Confirming delete for:', currentPreviewActivity, currentPreviewIndex);
+    
+    // Close the photo preview modal
+    const previewModal = document.getElementById('photoPreviewModal');
+    if (previewModal) {
+        previewModal.style.display = 'none';
+    }
+    
+    // Small delay to ensure smooth transition
+    setTimeout(() => {
+        const confirmModal = document.getElementById('deleteConfirmationModal');
+        if (confirmModal) {
+            confirmModal.style.display = 'block';
+            confirmModal.style.zIndex = '1002';
+        }
+    }, 100);
+}
+
+// Execute photo delete
+window.executePhotoDelete = async function() {
+    console.log('Executing delete for:', currentPreviewActivity, currentPreviewIndex); // Debug
+    
+    if (currentPreviewActivity !== null && currentPreviewIndex !== null) {
+        try {
+            await removeActivityPhoto(currentPreviewActivity, currentPreviewIndex);
+            cancelPhotoDelete();
+            
+            // Reset preview variables
+            currentPreviewActivity = null;
+            currentPreviewIndex = null;
+            
+            showToast('Photo deleted successfully', 'success');
+        } catch (error) {
+            console.error('Error deleting photo:', error);
+            showToast('Error deleting photo', 'error');
+        }
+    } else {
+        console.error('No photo selected for deletion');
+        cancelPhotoDelete();
+    }
+}
+
+// Cancel photo delete - close confirmation and reset
+window.cancelPhotoDelete = function() {
+    const confirmModal = document.getElementById('deleteConfirmationModal');
+    if (confirmModal) {
+        confirmModal.style.display = 'none';
+    }
+    
+    // Don't reopen preview, just reset
+    currentPreviewActivity = null;
+    currentPreviewIndex = null;
+}
+
+// Close modals when clicking outside
+document.addEventListener('click', function(event) {
+    const photoModal = document.getElementById('photoOptionsModal');
+    const previewModal = document.getElementById('photoPreviewModal');
+    const deleteModal = document.getElementById('deleteConfirmationModal');
+    
+    if (photoModal && event.target === photoModal) {
+        hidePhotoOptions();
+    }
+    if (previewModal && event.target === previewModal) {
+        closePhotoPreview();
+    }
+    if (deleteModal && event.target === deleteModal) {
+        cancelPhotoDelete();
+    }
+});
 
 // Hide photo options modal
 window.hidePhotoOptions = function() {
@@ -1686,19 +1798,57 @@ window.selectPhotoSource = function(source) {
     hidePhotoOptions();
 }
 
-// Close modal when clicking outside
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('photoOptionsModal');
-    if (modal && event.target === modal) {
-        hidePhotoOptions();
+// Fix desktop photo preview by ensuring click events work
+function fixDesktopPhotoPreview() {
+    // Add click event listeners to all photo items
+    document.querySelectorAll('.activity-photo-item').forEach(item => {
+        if (!item.hasAttribute('data-click-fixed')) {
+            item.setAttribute('data-click-fixed', 'true');
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Extract the onclick attribute and execute it
+                const onclickAttr = this.getAttribute('onclick');
+                if (onclickAttr) {
+                    // Execute the onclick function
+                    eval(onclickAttr);
+                }
+            });
+        }
+    });
+}
+
+// Open photo preview with debugging
+window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
+    console.log('Opening photo preview:', activity, photoIndex, photoSrc); // Debug line
+    
+    currentPreviewActivity = activity;
+    currentPreviewIndex = photoIndex;
+    
+    const modal = document.getElementById('photoPreviewModal');
+    const image = document.getElementById('photoPreviewImage');
+    
+    console.log('Modal found:', modal); // Debug line
+    console.log('Image found:', image); // Debug line
+    
+    if (modal && image) {
+        image.src = photoSrc;
+        modal.style.display = 'block';
+        modal.style.zIndex = '9999'; // Force high z-index
+        console.log('Modal should be visible now'); // Debug line
+    } else {
+        console.error('Modal or image element not found');
     }
-});
+}
 
-// Photo preview variables
-let currentPreviewActivity = null;
-let currentPreviewIndex = null;
+// Photo zoom variables
+let currentZoom = 1;
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let imageOffset = { x: 0, y: 0 };
 
-// Open photo preview
+// Open photo preview with zoom functionality
 window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
     currentPreviewActivity = activity;
     currentPreviewIndex = photoIndex;
@@ -1709,43 +1859,126 @@ window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
     if (modal && image) {
         image.src = photoSrc;
         modal.style.display = 'block';
+        
+        // Reset zoom and position
+        currentZoom = 1;
+        imageOffset = { x: 0, y: 0 };
+        updateImageTransform();
+        
+        // Add drag functionality
+        setupImageDrag(image);
     }
 }
 
-// Close photo preview
-window.closePhotoPreview = function() {
-    const modal = document.getElementById('photoPreviewModal');
-    if (modal) {
-        modal.style.display = 'none';
+// Improved zoom photo function
+window.zoomPhoto = function(direction) {
+    const zoomStep = 0.25;
+    const minZoom = 0.8;  // Changed from 0.5 to 0.8
+    const maxZoom = 3;
+    
+    if (direction === 'in' && currentZoom < maxZoom) {
+        currentZoom += zoomStep;
+    } else if (direction === 'out' && currentZoom > minZoom) {
+        currentZoom -= zoomStep;
     }
-    currentPreviewActivity = null;
-    currentPreviewIndex = null;
+    
+    // Reset position if zoomed out to minimum
+    if (currentZoom <= 1) {
+        imageOffset = { x: 0, y: 0 };
+    }
+    
+    updateImageTransform();
 }
 
-// Confirm photo delete
-window.confirmPhotoDelete = function() {
-    const confirmModal = document.getElementById('deleteConfirmationModal');
-    if (confirmModal) {
-        confirmModal.style.display = 'block';
+// Reset zoom to fit container properly
+window.resetZoom = function() {
+    currentZoom = 1;
+    imageOffset = { x: 0, y: 0 };
+    updateImageTransform();
+}
+
+// Update image transform
+function updateImageTransform() {
+    const image = document.getElementById('photoPreviewImage');
+    const zoomLevelEl = document.getElementById('zoomLevel');
+    
+    if (image) {
+        image.style.transform = `scale(${currentZoom}) translate(${imageOffset.x}px, ${imageOffset.y}px)`;
+    }
+    
+    if (zoomLevelEl) {
+        zoomLevelEl.textContent = `${Math.round(currentZoom * 100)}%`;
     }
 }
 
-// Execute photo delete
-window.executePhotoDelete = async function() {
-    if (currentPreviewActivity !== null && currentPreviewIndex !== null) {
-        await removeActivityPhoto(currentPreviewActivity, currentPreviewIndex);
-        closePhotoPreview();
-        cancelPhotoDelete();
-    }
+// Setup image drag functionality
+function setupImageDrag(image) {
+    // Remove existing listeners
+    image.onmousedown = null;
+    image.onmousemove = null;
+    image.onmouseup = null;
+    
+    image.addEventListener('mousedown', function(e) {
+        if (currentZoom > 1) {
+            isDragging = true;
+            dragStart = { x: e.clientX - imageOffset.x, y: e.clientY - imageOffset.y };
+            image.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging && currentZoom > 1) {
+            imageOffset = {
+                x: e.clientX - dragStart.x,
+                y: e.clientY - dragStart.y
+            };
+            updateImageTransform();
+        }
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isDragging) {
+            isDragging = false;
+            image.style.cursor = 'grab';
+        }
+    });
+    
+    // Touch support for mobile
+    image.addEventListener('touchstart', function(e) {
+        if (currentZoom > 1 && e.touches.length === 1) {
+            isDragging = true;
+            const touch = e.touches[0];
+            dragStart = { x: touch.clientX - imageOffset.x, y: touch.clientY - imageOffset.y };
+            e.preventDefault();
+        }
+    });
+    
+    image.addEventListener('touchmove', function(e) {
+        if (isDragging && currentZoom > 1 && e.touches.length === 1) {
+            const touch = e.touches[0];
+            imageOffset = {
+                x: touch.clientX - dragStart.x,
+                y: touch.clientY - dragStart.y
+            };
+            updateImageTransform();
+            e.preventDefault();
+        }
+    });
+    
+    image.addEventListener('touchend', function() {
+        isDragging = false;
+    });
+    
+    // Mouse wheel zoom
+    image.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            zoomPhoto('in');
+        } else {
+            zoomPhoto('out');
+        }
+    });
 }
-
-// Cancel photo delete
-window.cancelPhotoDelete = function() {
-    const confirmModal = document.getElementById('deleteConfirmationModal');
-    if (confirmModal) {
-        confirmModal.style.display = 'none';
-    }
-}
-
 
 // END OF app.js - Complete file
