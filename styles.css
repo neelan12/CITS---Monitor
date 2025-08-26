@@ -1080,3 +1080,78 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--dark);
 }
+
+/* Photo Options Modal */
+.photo-options-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.photo-options-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border-radius: 20px 20px 0 0;
+    padding: 1.5rem;
+    animation: slideUp 0.3s ease;
+}
+
+.photo-options-title {
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    color: var(--dark);
+}
+
+.photo-option-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background: var(--white);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.photo-option-btn:hover {
+    background: var(--light-gray);
+    border-color: var(--primary);
+}
+
+.photo-option-btn .icon {
+    font-size: 1.5rem;
+    width: 40px;
+    text-align: center;
+}
+
+.photo-cancel-btn {
+    width: 100%;
+    padding: 1rem;
+    margin-top: 1rem;
+    background: var(--light-gray);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
