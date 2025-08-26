@@ -1342,3 +1342,171 @@ body {
     font-weight: 600;
     cursor: pointer;
 }
+
+/* Force photo preview modal visibility */
+.photo-preview-modal {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    z-index: 9999 !important;
+}
+
+.photo-preview-modal[style*="block"] {
+    display: block !important;
+}
+
+.photo-preview-content {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 90% !important;
+    max-height: 90% !important;
+    background: white !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+}
+
+.photo-preview-image {
+    max-width: 100% !important;
+    max-height: 70vh !important;
+    display: block !important;
+    object-fit: contain !important;
+}
+
+/* Fix z-index hierarchy */
+.photo-preview-modal {
+    z-index: 1001 !important;
+}
+
+.delete-confirmation-modal {
+    z-index: 1002 !important;
+}
+
+.photo-options-modal {
+    z-index: 1000 !important;
+}
+
+/* Enhanced Photo Preview Modal with Zoom */
+.photo-preview-modal {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    z-index: 1001 !important;
+}
+
+.photo-preview-modal[style*="block"] {
+    display: block !important;
+}
+
+.photo-preview-content {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 95% !important;
+    max-height: 95% !important;
+    background: white !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+}
+
+/* Fix zoom behavior */
+.photo-preview-image-container {
+    position: relative;
+    overflow: hidden;
+    max-height: 70vh;
+    min-height: 400px;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-preview-image {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    cursor: grab !important;
+    transition: transform 0.2s ease !important;
+    display: block !important;
+    object-fit: contain !important;
+    transform-origin: center center !important;
+}
+
+.photo-preview-image:active {
+    cursor: grabbing !important;
+}
+
+.photo-zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.zoom-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.zoom-level {
+    color: white;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-weight: 600;
+}
+
+.photo-preview-actions {
+    padding: 1rem !important;
+    display: flex !important;
+    gap: 1rem !important;
+    justify-content: center !important;
+    background: white !important;
+}
+
+.photo-delete-btn {
+    background: var(--danger) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: background 0.3s ease !important;
+}
+
+.photo-delete-btn:hover {
+    background: #b91c1c !important;
+}
