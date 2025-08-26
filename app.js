@@ -427,14 +427,15 @@ function initializeActivities() {
            style="display: none;" 
            onchange="handleActivityPhotoUpload('${activityEscaped}', this)">
                         <div class="activity-photo-preview" id="photos-${activity.replace(/\s+/g, '-')}">
-                            ${activityData.photos ? activityData.photos.map((photo, photoIndex) => `
-                                <div class="activity-photo-item">
-                                    <img src="${photo}" alt="Photo">
-                                    <button class="activity-photo-remove" 
-                                            onclick="removeActivityPhoto('${activityEscaped}', ${photoIndex})">×</button>
-                                </div>
-                            `).join('') : ''}
-                        </div>
+    ${activityData.photos ? activityData.photos.map((photo, photoIndex) => `
+        <div class="activity-photo-item" onclick="openPhotoPreview('${activityEscaped}', ${photoIndex}, '${photo}')">
+            <img src="${photo}" alt="Photo">
+            <div class="photo-overlay">
+                <span class="photo-view-icon">👁</span>
+            </div>
+        </div>
+    `).join('') : ''}
+</div>
                     </div>
                 </div>
             </div>
@@ -1635,10 +1636,24 @@ let currentPhotoActivity = null;
 
 // Show photo options modal
 window.showPhotoOptions = function(activity) {
-    currentPhotoActivity = activity;
-    const modal = document.getElementById('photoOptionsModal');
-    if (modal) {
-        modal.style.display = 'block';
+    // Check if device is mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     ('ontouchstart' in window) || 
+                     (window.innerWidth <= 768);
+    
+    if (isMobile) {
+        // Show modal for mobile
+        currentPhotoActivity = activity;
+        const modal = document.getElementById('photoOptionsModal');
+        if (modal) {
+            modal.style.display = 'block';
+        }
+    } else {
+        // Direct gallery access for desktop
+        const input = document.getElementById(`photo-gallery-${activity.replace(/\s+/g, '-')}`);
+        if (input) {
+            input.click();
+        }
     }
 }
 
@@ -1678,5 +1693,59 @@ document.addEventListener('click', function(event) {
         hidePhotoOptions();
     }
 });
+
+// Photo preview variables
+let currentPreviewActivity = null;
+let currentPreviewIndex = null;
+
+// Open photo preview
+window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
+    currentPreviewActivity = activity;
+    currentPreviewIndex = photoIndex;
+    
+    const modal = document.getElementById('photoPreviewModal');
+    const image = document.getElementById('photoPreviewImage');
+    
+    if (modal && image) {
+        image.src = photoSrc;
+        modal.style.display = 'block';
+    }
+}
+
+// Close photo preview
+window.closePhotoPreview = function() {
+    const modal = document.getElementById('photoPreviewModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentPreviewActivity = null;
+    currentPreviewIndex = null;
+}
+
+// Confirm photo delete
+window.confirmPhotoDelete = function() {
+    const confirmModal = document.getElementById('deleteConfirmationModal');
+    if (confirmModal) {
+        confirmModal.style.display = 'block';
+    }
+}
+
+// Execute photo delete
+window.executePhotoDelete = async function() {
+    if (currentPreviewActivity !== null && currentPreviewIndex !== null) {
+        await removeActivityPhoto(currentPreviewActivity, currentPreviewIndex);
+        closePhotoPreview();
+        cancelPhotoDelete();
+    }
+}
+
+// Cancel photo delete
+window.cancelPhotoDelete = function() {
+    const confirmModal = document.getElementById('deleteConfirmationModal');
+    if (confirmModal) {
+        confirmModal.style.display = 'none';
+    }
+}
+
 
 // END OF app.js - Complete file
