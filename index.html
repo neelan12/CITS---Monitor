@@ -200,10 +200,34 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
+    <!-- Firebase SDK v9 Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
     <!-- Junction Data -->
     <script src="junction-data.js"></script>
+    <!-- DocX Library for Word Document Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.4.1/build/index.js"></script>
     
     <!-- Main Application Script -->
     <script src="app.js"></script>
+    <!-- Photo Options Modal -->
+<div class="photo-options-modal" id="photoOptionsModal">
+    <div class="photo-options-content">
+        <div class="photo-options-title">Add Photo</div>
+        <button class="photo-option-btn" onclick="selectPhotoSource('camera')">
+            <span class="icon">📷</span>
+            <span>Take Photo</span>
+        </button>
+        <button class="photo-option-btn" onclick="selectPhotoSource('gallery')">
+            <span class="icon">🖼️</span>
+            <span>Choose from Gallery</span>
+        </button>
+        <button class="photo-cancel-btn" onclick="hidePhotoOptions()">Cancel</button>
+    </div>
+</div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
