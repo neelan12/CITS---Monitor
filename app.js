@@ -369,83 +369,509 @@ function initializeActivities() {
     const junctionId = appState.selectedJunction.Location_Id;
     const junctionActivities = appState.junctionData[junctionId]?.activities || {};
     
-    activitySection.innerHTML = activities.map((activity, index) => {
-        const activityData = junctionActivities[activity] || { status: 'pending', observation: '', photos: [], dates: {} };
-        
-        let dateStampsHTML = '';
-        if (activityData.dates) {
-            if (activityData.dates.progressDate) {
-                dateStampsHTML += `<span class="date-stamp progress"><span class="date-stamp-label">Started:</span> ${formatDate(activityData.dates.progressDate)}</span>`;
-            }
-            if (activityData.dates.completedDate) {
-                dateStampsHTML += `<span class="date-stamp completed"><span class="date-stamp-label">Completed:</span> ${formatDate(activityData.dates.completedDate)}</span>`;
-            }
-        }
+    activitySection.innerHTML = `
+        <div class="activity-progress-table-section">
+            <div class="activity-progress-table-header">
+                <div class="activity-progress-table-cell activity-label-header">Activity</div>
+                <div class="activity-progress-table-cell">Work Status</div>
+                <div class="activity-progress-table-cell">Start Date</div>
+                <div class="activity-progress-table-cell">End Date</div>
+                <div class="activity-progress-table-cell">Actions</div>
+            </div>
+            ${activities.map((activity, index) => {
+        const activityData = junctionActivities[activity] || { 
+            status: 'pending', 
+            observation: '', 
+            photos: [], 
+            dates: {},
+                    quantities: {}
+                };
         
         const activityEscaped = activity.replace(/'/g, "\\'");
+                const startDate = activityData.dates?.progressDate ? formatDate(activityData.dates.progressDate) : '';
+                const endDate = activityData.dates?.completedDate ? formatDate(activityData.dates.completedDate) : '';
         
         return `
-            <div class="activity-card">
-                <div class="activity-header">
+                    <div class="activity-progress-table-row">
+                        <div class="activity-progress-table-cell activity-label">
+                            <span class="activity-icon">📋</span>
                     <span class="activity-name">${activity}</span>
                     <span class="activity-number">${index + 1}/${activities.length}</span>
                 </div>
-                <div class="status-selector">
-                    <button class="status-btn completed ${activityData.status === 'completed' ? 'selected' : ''}" 
-                            onclick="updateActivityStatus('${activityEscaped}', 'completed')">
-                        ✅ Completed
+                        <div class="activity-progress-table-cell status-cell">
+                            <div class="status-selector-compact">
+                                <button class="status-btn-compact completed ${activityData.status === 'completed' ? 'selected' : ''}" 
+                                        onclick="updateActivityStatus('${activityEscaped}', 'completed')" title="Completed">
+                                    ✅
                     </button>
-                    <button class="status-btn progress ${activityData.status === 'progress' ? 'selected' : ''}" 
-                            onclick="updateActivityStatus('${activityEscaped}', 'progress')">
-                        🔄 In Progress
+                                <button class="status-btn-compact progress ${activityData.status === 'progress' ? 'selected' : ''}" 
+                                        onclick="updateActivityStatus('${activityEscaped}', 'progress')" title="In Progress">
+                                    🔄
                     </button>
-                    <button class="status-btn pending ${activityData.status === 'pending' ? 'selected' : ''}" 
-                            onclick="updateActivityStatus('${activityEscaped}', 'pending')">
-                        ⏳ Yet to Start
+                                <button class="status-btn-compact pending ${activityData.status === 'pending' ? 'selected' : ''}" 
+                                        onclick="updateActivityStatus('${activityEscaped}', 'pending')" title="Yet to Start">
+                                    ⏳
                     </button>
+                            </div>
+                        </div>
+                        <div class="activity-progress-table-cell date-cell">
+                            <span class="date-display">${startDate || 'Not started'}</span>
+                        </div>
+                        <div class="activity-progress-table-cell date-cell">
+                            <span class="date-display">${endDate || 'Not completed'}</span>
+                        </div>
+                        <div class="activity-progress-table-cell actions-cell">
+                            <button class="action-btn details-btn" onclick="toggleActivityDetails('${activityEscaped}')" title="View Details">
+                                📊 Details
+                            </button>
+                        </div>
                 </div>
-                ${dateStampsHTML ? `<div class="activity-dates">${dateStampsHTML}</div>` : ''}
-                <div class="activity-extras">
-                    <div class="activity-observation">
-                        <label>📝 Observation/Notes:</label>
-                        <textarea 
-                            placeholder="Add observations for ${activity}..." 
-                            onchange="updateActivityObservation('${activityEscaped}', this.value)"
-                            >${activityData.observation || ''}</textarea>
+                
+                    <!-- Collapsible Details Section -->
+                    <div class="activity-details-section" id="details-${activity.replace(/\s+/g, '-')}" style="display: none;">
+                        <div class="details-content">
+                            <!-- Quantity Tracking Section -->
+                            <div class="quantity-tracking-section">
+                                <div class="quantity-header">
+                                    <h4>📊 Quantity Comparison</h4>
+                                    <span class="quantity-subtitle">Compare site quantities with contractor submissions</span>
                     </div>
-                    <div class="activity-photos">
-    			<label>📸 Photos:</label>
-    			<button class="photo-upload-btn" onclick="showPhotoOptions('${activityEscaped}')">
-        			<span>📷</span> Add Photo
-    			</button>
-    			<input type="file" id="photo-camera-${activity.replace(/\s+/g, '-')}" 
-           			accept="image/*" capture="environment" 
-           			style="display: none;" 
-           			onchange="handleActivityPhotoUpload('${activityEscaped}', this)">
-    <input type="file" id="photo-gallery-${activity.replace(/\s+/g, '-')}" 
-           accept="image/*" multiple 
-           style="display: none;" 
-           onchange="handleActivityPhotoUpload('${activityEscaped}', this)">
-                        <div class="activity-photo-preview" id="photos-${activity.replace(/\s+/g, '-')}">
-    ${activityData.photos ? activityData.photos.map((photo, photoIndex) => `
-        <div class="activity-photo-item" onclick="openPhotoPreview('${activityEscaped}', ${photoIndex}, '${photo}')">
-            <img src="${photo}" alt="Photo">
-            <div class="photo-overlay">
-                <span class="photo-view-icon">👁</span>
-            </div>
-        </div>
-    `).join('') : ''}
-</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+                    
+                                ${generateQuantityFields(activity, activityData)}
+                                
+                                <!-- Quantity Comparison Summary -->
+                                <div class="quantity-summary" id="quantity-summary-${activity.replace(/\s+/g, '-')}">
+                                    ${generateQuantitySummary(activityData.quantities)}
+                                </div>
+                                </div>
+                                
+                            <!-- Activity Notes -->
+                            <div class="activity-extras">
+                                <div class="observation-section">
+                                            <div class="observation-header">
+                                        <h4>📝 Observations</h4>
+                                        <button class="add-observation-btn" onclick="addObservation('${activityEscaped}')">
+                                            <span>➕</span> Add Observation
+                                        </button>
+                                            </div>
+                                            
+                                    <div class="observation-table-section">
+                                        <div class="observation-table-header">
+                                            <div class="observation-table-cell">Observation Comments</div>
+                                            <div class="observation-table-cell">Photos</div>
+                                            <div class="observation-table-cell">Status</div>
+                                            <div class="observation-table-cell">Actions</div>
+                                                                    </div>
+                                        <div class="observation-table-body" id="observations-${activity.replace(/\s+/g, '-')}">
+                                            ${generateObservationsTable(activity, activityData)}
+                                                                </div>
+                                                        </div>
+                                                    </div>
+                                            </div>
+                                            </div>
+                                        </div>
+                `;
+            }).join('')}
+                                    </div>
+    `;
     
     updateStatusCounts();
 }
 
-// Update Activity Status with Date Tracking
+// Generate Observations Table
+function generateObservationsTable(activity, activityData) {
+    const observations = activityData.observations || [];
+    
+    if (observations.length === 0) {
+        return `
+            <div class="observation-table-row empty-row">
+                <div class="observation-table-cell" colspan="4">
+                    <span class="no-observations">No observations added yet. Click "Add Observation" to get started.</span>
+                                            </div>
+            </div>
+        `;
+    }
+    
+    return observations.map((observation, index) => {
+        const isClosed = observation.status === 'closed';
+        const rowClass = isClosed ? 'observation-table-row closed' : 'observation-table-row';
+        
+        return `
+            <div class="${rowClass}" id="observation-row-${activity.replace(/\s+/g, '-')}-${index}">
+                <div class="observation-table-cell comments-cell">
+                    <textarea 
+                        class="observation-comment" 
+                        placeholder="Enter observation details..."
+                        onchange="updateObservationComment('${activity.replace(/'/g, "\\'")}', ${index}, this.value)"
+                        ${isClosed ? 'disabled' : ''}
+                    >${observation.comment || ''}</textarea>
+                </div>
+                <div class="observation-table-cell photos-cell">
+                    <div class="observation-photos">
+                        <div class="observation-photo-preview">
+                            ${observation.photos && observation.photos.length > 0 ? observation.photos.map((photo, photoIndex) => `
+                                <div class="observation-photo-item" onclick="openPhotoPreview('${activity.replace(/'/g, "\\'")}', ${photoIndex}, '${photo}', 'observation', ${index})">
+                                    <img src="${photo}" alt="Photo">
+                                                                        <div class="photo-overlay">
+                                                                            <span class="photo-view-icon">👁</span>
+                                                                        </div>
+                                                                    </div>
+                            `).join('') : '<span class="no-photos">No photos</span>'}
+                                                            </div>
+                                                        </div>
+                                                </div>
+                <div class="observation-table-cell status-cell">
+                    <button class="status-toggle-btn ${isClosed ? 'closed' : 'open'}" 
+                            onclick="toggleObservationStatus('${activity.replace(/'/g, "\\'")}', ${index})">
+                        ${isClosed ? '🔒 Closed' : '🔓 Open'}
+                                                </button>
+                                            </div>
+                <div class="observation-table-cell actions-cell">
+                    <button class="delete-observation-btn" onclick="deleteObservation('${activity.replace(/'/g, "\\'")}', ${index})" title="Delete Observation">
+                        🗑️
+                                            </button>
+                                        </div>
+                                </div>
+        `;
+    }).join('');
+}
+
+// Add New Observation
+window.addObservation = async function(activity) {
+    // Create and show the popup
+    const popupHTML = `
+        <div class="observation-popup-overlay" id="observation-popup-overlay">
+            <div class="observation-popup">
+                <div class="observation-popup-header">
+                    <h3>➕ Add New Observation</h3>
+                    <button class="close-popup-btn" onclick="closeObservationPopup()">✕</button>
+                            </div>
+                <div class="observation-popup-content">
+                    <div class="observation-input-group">
+                        <label>📝 Observation Comments:</label>
+                        <textarea 
+                            id="new-observation-comment" 
+                            placeholder="Enter observation details..."
+                            rows="4"
+                        ></textarea>
+                    </div>
+                    <div class="observation-input-group">
+    			<label>📸 Photos:</label>
+                        <div class="photo-upload-section">
+                            <button class="add-photo-popup-btn" onclick="showObservationPhotoOptionsPopup()">
+        			<span>📷</span> Add Photo
+    			</button>
+                            <input type="file" id="observation-photo-camera-popup" 
+           			accept="image/*" capture="environment" 
+           			style="display: none;" 
+                                   onchange="handleObservationPhotoUploadPopup(this)">
+                            <input type="file" id="observation-photo-gallery-popup" 
+           accept="image/*" multiple 
+           style="display: none;" 
+                                   onchange="handleObservationPhotoUploadPopup(this)">
+                            <div class="observation-photo-preview-popup" id="observation-photo-preview-popup">
+                                <!-- Photos will be added here -->
+            </div>
+        </div>
+</div>
+                </div>
+                <div class="observation-popup-footer">
+                    <button class="cancel-btn" onclick="closeObservationPopup()">Cancel</button>
+                    <button class="add-btn" onclick="saveNewObservation('${activity.replace(/'/g, "\\'")}')">Add Observation</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    
+    // Add popup to body
+    document.body.insertAdjacentHTML('beforeend', popupHTML);
+    
+    // Store activity for later use
+    window.currentObservationActivity = activity;
+    window.currentObservationPhotos = [];
+}
+
+// Close Observation Popup
+window.closeObservationPopup = function() {
+    const popup = document.getElementById('observation-popup-overlay');
+    if (popup) {
+        popup.remove();
+    }
+    // Clear stored data
+    window.currentObservationActivity = null;
+    window.currentObservationPhotos = [];
+}
+
+// Show Observation Photo Options in Popup
+window.showObservationPhotoOptionsPopup = function() {
+    // Check if it's a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        // For mobile devices, show a modern modal with buttons
+        const modalHTML = `
+            <div class="photo-options-modal" id="photo-options-modal" style="display: flex;">
+                <div class="photo-options-content">
+                    <div class="photo-options-title">Choose Photo Source</div>
+                    <button class="photo-option-btn" onclick="selectPhotoSource('camera')">
+                        <span class="icon">📷</span>
+                        <span>Take Photo</span>
+                    </button>
+                    <button class="photo-option-btn" onclick="selectPhotoSource('gallery')">
+                        <span class="icon">🖼️</span>
+                        <span>Choose from Gallery</span>
+                    </button>
+                    <button class="photo-cancel-btn" onclick="closePhotoOptionsModal()">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } else {
+        // For desktop/laptop, directly open file picker
+        const galleryInput = document.getElementById('observation-photo-gallery-popup');
+        if (galleryInput) {
+            galleryInput.click();
+        }
+    }
+}
+
+// Select Photo Source
+window.selectPhotoSource = function(source) {
+    const cameraInput = document.getElementById('observation-photo-camera-popup');
+    const galleryInput = document.getElementById('observation-photo-gallery-popup');
+    
+    if (source === 'camera' && cameraInput) {
+        cameraInput.click();
+    } else if (source === 'gallery' && galleryInput) {
+        galleryInput.click();
+    }
+    
+    // Close the modal
+    closePhotoOptionsModal();
+}
+
+// Close Photo Options Modal
+window.closePhotoOptionsModal = function() {
+    const modal = document.getElementById('photo-options-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Handle Observation Photo Upload in Popup
+window.handleObservationPhotoUploadPopup = async function(input) {
+    const files = input.files;
+    
+    if (files.length > 0) {
+        // Show loading indicator
+        const previewContainer = document.getElementById('observation-photo-preview-popup');
+        if (previewContainer) {
+            previewContainer.innerHTML = '<div class="uploading-photos">📸 Uploading photos...</div>';
+        }
+        
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                console.log('Uploading file:', file.name);
+                
+                const photoUrl = await uploadPhotoToFirebase(file);
+                console.log('Uploaded photo URL:', photoUrl);
+                
+                // Add to current observation photos
+                if (!window.currentObservationPhotos) {
+                    window.currentObservationPhotos = [];
+                }
+                window.currentObservationPhotos.push(photoUrl);
+            }
+            
+            // Update preview after all uploads complete
+            updateObservationPhotoPreviewPopup();
+            
+        } catch (error) {
+            console.error('Error uploading photos:', error);
+            alert('Error uploading photos. Please try again.');
+            
+            // Reset preview to show existing photos
+            updateObservationPhotoPreviewPopup();
+        }
+    }
+    
+    // Reset input
+    input.value = '';
+}
+
+// Update Observation Photo Preview in Popup
+window.updateObservationPhotoPreviewPopup = function() {
+    const previewContainer = document.getElementById('observation-photo-preview-popup');
+    if (previewContainer && window.currentObservationPhotos) {
+        previewContainer.innerHTML = window.currentObservationPhotos.map((photo, index) => `
+            <div class="observation-photo-item-popup" onclick="openPhotoPreview('observation-popup', ${index}, '${photo}')">
+                <img src="${photo}" alt="Photo">
+                <div class="photo-overlay">
+                    <span class="photo-view-icon">👁</span>
+                </div>
+                <button class="remove-photo-btn" onclick="removeObservationPhoto(${index})" title="Remove Photo">✕</button>
+            </div>
+        `).join('');
+    }
+}
+
+// Remove Observation Photo
+window.removeObservationPhoto = function(index) {
+    if (window.currentObservationPhotos) {
+        window.currentObservationPhotos.splice(index, 1);
+        updateObservationPhotoPreviewPopup();
+    }
+}
+
+// Save New Observation
+window.saveNewObservation = async function(activity) {
+    if (!appState.selectedJunction) return;
+    
+    const comment = document.getElementById('new-observation-comment').value.trim();
+    
+    if (!comment) {
+        alert('Please enter observation comments before adding.');
+        return;
+    }
+    
+    const junctionId = appState.selectedJunction.Location_Id;
+    
+    if (!appState.junctionData[junctionId].activities[activity].observations) {
+        appState.junctionData[junctionId].activities[activity].observations = [];
+    }
+    
+    const newObservation = {
+        id: Date.now(),
+        comment: comment,
+        photos: window.currentObservationPhotos || [],
+        status: 'open',
+        createdAt: new Date().toISOString()
+    };
+    
+    appState.junctionData[junctionId].activities[activity].observations.push(newObservation);
+    
+    // Refresh the observations table
+    const observationsBody = document.getElementById(`observations-${activity.replace(/\s+/g, '-')}`);
+    if (observationsBody) {
+        observationsBody.innerHTML = generateObservationsTable(activity, appState.junctionData[junctionId].activities[activity]);
+    }
+    
+    await saveToFirestore(junctionId);
+    
+    // Close popup
+    closeObservationPopup();
+}
+
+// Update Observation Comment
+window.updateObservationComment = async function(activity, index, comment) {
+    if (!appState.selectedJunction) return;
+    
+    const junctionId = appState.selectedJunction.Location_Id;
+    appState.junctionData[junctionId].activities[activity].observations[index].comment = comment;
+    
+    await saveToFirestore(junctionId);
+}
+
+// Toggle Observation Status
+window.toggleObservationStatus = async function(activity, index) {
+    if (!appState.selectedJunction) return;
+    
+    const junctionId = appState.selectedJunction.Location_Id;
+    const observation = appState.junctionData[junctionId].activities[activity].observations[index];
+    
+    observation.status = observation.status === 'open' ? 'closed' : 'open';
+    
+    // Refresh the observations table
+    const observationsBody = document.getElementById(`observations-${activity.replace(/\s+/g, '-')}`);
+    if (observationsBody) {
+        observationsBody.innerHTML = generateObservationsTable(activity, appState.junctionData[junctionId].activities[activity]);
+    }
+    
+    await saveToFirestore(junctionId);
+}
+
+// Delete Observation
+window.deleteObservation = async function(activity, index) {
+    if (!appState.selectedJunction) return;
+    
+    if (confirm('Are you sure you want to delete this observation?')) {
+        const junctionId = appState.selectedJunction.Location_Id;
+        appState.junctionData[junctionId].activities[activity].observations.splice(index, 1);
+        
+        // Refresh the observations table
+        const observationsBody = document.getElementById(`observations-${activity.replace(/\s+/g, '-')}`);
+        if (observationsBody) {
+            observationsBody.innerHTML = generateObservationsTable(activity, appState.junctionData[junctionId].activities[activity]);
+        }
+        
+        await saveToFirestore(junctionId);
+    }
+}
+
+// Show Observation Photo Options
+window.showObservationPhotoOptions = function(activity, index) {
+    const cameraInput = document.getElementById(`observation-photo-camera-${activity.replace(/\s+/g, '-')}-${index}`);
+    const galleryInput = document.getElementById(`observation-photo-gallery-${activity.replace(/\s+/g, '-')}-${index}`);
+    
+    if (cameraInput && galleryInput) {
+        const options = ['📷 Camera', '🖼️ Gallery'];
+        const choice = prompt(`Choose photo source:\n1. ${options[0]}\n2. ${options[1]}\n\nEnter 1 or 2:`);
+        
+        if (choice === '1') {
+            cameraInput.click();
+        } else if (choice === '2') {
+            galleryInput.click();
+        }
+    }
+}
+
+// Handle Observation Photo Upload
+window.handleObservationPhotoUpload = async function(activity, index, input) {
+    if (!appState.selectedJunction) return;
+    
+    const junctionId = appState.selectedJunction.Location_Id;
+    const files = input.files;
+    
+    if (files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const photoUrl = await uploadPhotoToFirebase(file);
+            
+            if (!appState.junctionData[junctionId].activities[activity].observations[index].photos) {
+                appState.junctionData[junctionId].activities[activity].observations[index].photos = [];
+            }
+            
+            appState.junctionData[junctionId].activities[activity].observations[index].photos.push(photoUrl);
+        }
+        
+        // Refresh the observations table
+        const observationsBody = document.getElementById(`observations-${activity.replace(/\s+/g, '-')}`);
+        if (observationsBody) {
+            observationsBody.innerHTML = generateObservationsTable(activity, appState.junctionData[junctionId].activities[activity]);
+        }
+        
+        await saveToFirestore(junctionId);
+    }
+    
+    // Reset input
+    input.value = '';
+}
+window.toggleActivityDetails = function(activity) {
+    const detailsSection = document.getElementById(`details-${activity.replace(/\s+/g, '-')}`);
+    if (detailsSection) {
+        const isVisible = detailsSection.style.display !== 'none';
+        detailsSection.style.display = isVisible ? 'none' : 'block';
+        
+        // Update button text
+        const button = event.target;
+        if (button) {
+            button.innerHTML = isVisible ? '📊 Details' : '📊 Hide Details';
+        }
+    }
+}
 window.updateActivityStatus = async function(activity, status) {
     if (!appState.selectedJunction) {
         showToast('Please select a junction first!', 'error');
@@ -465,7 +891,8 @@ window.updateActivityStatus = async function(activity, status) {
             status: status,
             observation: '',
             photos: [],
-            dates: {}
+            dates: {},
+            quantities: {}
         };
     } else {
         appState.junctionData[junctionId].activities[activity].status = status;
@@ -474,6 +901,8 @@ window.updateActivityStatus = async function(activity, status) {
     if (!appState.junctionData[junctionId].activities[activity].dates) {
         appState.junctionData[junctionId].activities[activity].dates = {};
     }
+    
+    
     
     if (status === 'progress') {
         if (!appState.junctionData[junctionId].activities[activity].dates.progressDate) {
@@ -498,26 +927,7 @@ window.updateActivityStatus = async function(activity, status) {
     showToast(`${activity} marked as ${status}`, 'success');
 }
 
-// Update Activity Observation
-window.updateActivityObservation = async function(activity, observation) {
-    if (!appState.selectedJunction) return;
-    
-    const junctionId = appState.selectedJunction.Location_Id;
-    
-    if (!appState.junctionData[junctionId].activities[activity]) {
-        appState.junctionData[junctionId].activities[activity] = {
-            status: 'pending',
-            observation: observation,
-            photos: [],
-            dates: {}
-        };
-    } else {
-        appState.junctionData[junctionId].activities[activity].observation = observation;
-    }
-    
-    appState.junctionData[junctionId].lastUpdated = new Date().toISOString();
-    await saveToFirestore(junctionId);
-}
+
 
 // Advanced Image Compression Function
 async function compressImageTo100KB(file) {
@@ -649,12 +1059,12 @@ window.handleActivityPhotoUpload = async function(activity, input) {
             const reader = new FileReader();
             reader.onload = async function(event) {
                 if (!appState.junctionData[junctionId].activities[activity]) {
-                    appState.junctionData[junctionId].activities[activity] = {
-                        status: 'pending',
-                        observation: '',
-                        photos: [],
-                        dates: {}
-                    };
+                            appState.junctionData[junctionId].activities[activity] = { 
+            status: 'pending', 
+            observation: '', 
+            photos: [], 
+            dates: {}
+        };
                 }
                 
                 if (!appState.junctionData[junctionId].activities[activity].photos) {
@@ -683,6 +1093,49 @@ window.handleActivityPhotoUpload = async function(activity, input) {
     // Clear the input
     input.value = '';
 }
+
+// Helper function to get status label
+function getStatusLabel(status) {
+    switch(status) {
+        case 'pending': return '⏳ Pending';
+        case 'in_progress': return '🔄 In Progress';
+        case 'completed': return '✅ Completed';
+        case 'rectified': return '✅ Rectified';
+        default: return '⏳ Pending';
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Render Activity Photos
 function renderActivityPhotos(activity) {
@@ -1487,7 +1940,7 @@ function generateWeeklyTextReport(fromDate, toDate) {
 window.exportAllData = async function() {
     await loadFromFirestore();
     
-    let csvContent = 'Junction ID,Junction Name,Corridor,Activity,Status,Progress Date,Completed Date,Observation,Photos Count,Last Updated\n';
+    let csvContent = 'Junction ID,Junction Name,Corridor,Activity,Status,Progress Date,Completed Date,Observation,Photos Count,RFP Qty,Proposed Qty,GFC Qty,RFI Qty,Site Qty,Quantity Comparison,Last Updated\n';
     
     junctionData.forEach(junction => {
         const junctionId = junction.Location_Id;
@@ -1499,8 +1952,132 @@ window.exportAllData = async function() {
                     status: 'pending', 
                     observation: '', 
                     photos: [], 
-                    dates: {} 
+                    dates: {},
+                    quantities: {}
                 };
+                
+                if (activity === 'Poles Installation') {
+                    // Create separate rows for Standard and Cantilever poles
+                    if (actData.quantities?.standard) {
+                        const standardData = actData.quantities.standard;
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - Standard Pole",`;
+                        csvContent += `${actData.status || 'pending'},`;
+                        csvContent += `${actData.dates?.progressDate || ''},`;
+                        csvContent += `${actData.dates?.completedDate || ''},`;
+                        csvContent += `"${actData.observation || ''}",`;
+                        csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                        csvContent += `${standardData.rfp || ''},`;
+                        csvContent += `${standardData.boq || ''},`;
+                        csvContent += `${standardData.gfc || ''},`;
+                        csvContent += `${standardData.rfi || ''},`;
+                        csvContent += `${standardData.site || ''},`;
+                        csvContent += `"${generateQuantityComparisonText(standardData, 'Standard Pole')}",`;
+                        csvContent += `${data.lastUpdated || ''}\n`;
+                    }
+                    
+                    if (actData.quantities?.cantilever) {
+                        const cantileverData = actData.quantities.cantilever;
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - Cantilever Pole",`;
+                        csvContent += `${actData.status || 'pending'},`;
+                        csvContent += `${actData.dates?.progressDate || ''},`;
+                        csvContent += `${actData.dates?.completedDate || ''},`;
+                        csvContent += `"${actData.observation || ''}",`;
+                        csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                        csvContent += `${cantileverData.rfp || ''},`;
+                        csvContent += `${cantileverData.boq || ''},`;
+                        csvContent += `${cantileverData.gfc || ''},`;
+                        csvContent += `${cantileverData.rfi || ''},`;
+                        csvContent += `${cantileverData.site || ''},`;
+                        csvContent += `"${generateQuantityComparisonText(cantileverData, 'Cantilever Pole')}",`;
+                        csvContent += `${data.lastUpdated || ''}\n`;
+                    }
+                    
+                    // If no quantities exist, create a default row
+                    if (!actData.quantities?.standard && !actData.quantities?.cantilever) {
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - Standard Pole",`;
+                        csvContent += `${actData.status || 'pending'},`;
+                        csvContent += `${actData.dates?.progressDate || ''},`;
+                        csvContent += `${actData.dates?.completedDate || ''},`;
+                        csvContent += `"${actData.observation || ''}",`;
+                        csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `"",`;
+                        csvContent += `${data.lastUpdated || ''}\n`;
+                        
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - Cantilever Pole",`;
+                        csvContent += `${actData.status || 'pending'},`;
+                        csvContent += `${actData.dates?.progressDate || ''},`;
+                        csvContent += `${actData.dates?.completedDate || ''},`;
+                        csvContent += `"${actData.observation || ''}",`;
+                        csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `"",`;
+                        csvContent += `${data.lastUpdated || ''}\n`;
+                    }
+                } else if (activity === 'Aspects Installation') {
+                    // Create separate rows for each aspect type
+                    const aspects = [
+                        { key: 'redBall', label: 'Red Ball Aspects' },
+                        { key: 'redArrow', label: 'Red Arrow Aspects' },
+                        { key: 'amberBall', label: 'Amber Ball Aspects' },
+                        { key: 'amberArrow', label: 'Amber Arrow Aspects' },
+                        { key: 'greenBall', label: 'Green Ball Aspects' },
+                        { key: 'greenLeft', label: 'Green Left Aspects' },
+                        { key: 'greenUTurn', label: 'Green U-Turn Aspects' },
+                        { key: 'greenRight', label: 'Green Right Aspects' },
+                        { key: 'pedestrianRed', label: 'Pedestrian Red' },
+                        { key: 'pedestrianGreen', label: 'Pedestrian Green' },
+                        { key: 'pushButton', label: 'Push Button' },
+                        { key: 'buzzer', label: 'Buzzer' }
+                    ];
+                    
+                    aspects.forEach(aspect => {
+                        const aspectData = actData.quantities?.[aspect.key];
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - ${aspect.label}",`;
+                        csvContent += `${actData.status || 'pending'},`;
+                        csvContent += `${actData.dates?.progressDate || ''},`;
+                        csvContent += `${actData.dates?.completedDate || ''},`;
+                        csvContent += `"${actData.observation || ''}",`;
+                        csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                        csvContent += `${aspectData?.rfp || ''},`;
+                        csvContent += `${aspectData?.boq || ''},`;
+                        csvContent += `${aspectData?.gfc || ''},`;
+                        csvContent += `${aspectData?.rfi || ''},`;
+                        csvContent += `${aspectData?.site || ''},`;
+                        csvContent += `"${generateQuantityComparisonText(aspectData, aspect.label)}",`;
+                        csvContent += `${data.lastUpdated || ''}\n`;
+                    });
+                } else {
+                    // Handle regular activities
+                    const rfpQty = actData.quantities?.rfp || '';
+                    const proposedQty = actData.quantities?.boq || '';
+                    const gfcQty = actData.quantities?.gfc || '';
+                    const rfiQty = actData.quantities?.rfi || '';
+                    const siteQty = actData.quantities?.site || '';
+                    const quantityComparison = generateQuantityComparisonText(actData.quantities, activity);
                 
                 csvContent += `${junctionId},`;
                 csvContent += `"${junction.Name}",`;
@@ -1511,10 +2088,89 @@ window.exportAllData = async function() {
                 csvContent += `${actData.dates?.completedDate || ''},`;
                 csvContent += `"${actData.observation || ''}",`;
                 csvContent += `${actData.photos ? actData.photos.length : 0},`;
+                    csvContent += `${rfpQty},`;
+                    csvContent += `${proposedQty},`;
+                    csvContent += `${gfcQty},`;
+                    csvContent += `${rfiQty},`;
+                    csvContent += `${siteQty},`;
+                    csvContent += `"${quantityComparison}",`;
                 csvContent += `${data.lastUpdated || ''}\n`;
+                }
             });
         } else {
             activities.forEach(activity => {
+                if (activity === 'Poles Installation') {
+                    // Create default rows for Standard and Cantilever poles
+                    csvContent += `${junctionId},`;
+                    csvContent += `"${junction.Name}",`;
+                    csvContent += `"${junction.Corridors_Name}",`;
+                    csvContent += `"${activity} - Standard Pole",`;
+                    csvContent += `pending,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `"",`;
+                    csvContent += `0,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `"",`;
+                    csvContent += `\n`;
+                    
+                    csvContent += `${junctionId},`;
+                    csvContent += `"${junction.Name}",`;
+                    csvContent += `"${junction.Corridors_Name}",`;
+                    csvContent += `"${activity} - Cantilever Pole",`;
+                    csvContent += `pending,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `"",`;
+                    csvContent += `0,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `"",`;
+                    csvContent += `\n`;
+                } else if (activity === 'Aspects Installation') {
+                    // Create default rows for each aspect type
+                    const aspects = [
+                        { key: 'redBall', label: 'Red Ball Aspects' },
+                        { key: 'redArrow', label: 'Red Arrow Aspects' },
+                        { key: 'amberBall', label: 'Amber Ball Aspects' },
+                        { key: 'amberArrow', label: 'Amber Arrow Aspects' },
+                        { key: 'greenBall', label: 'Green Ball Aspects' },
+                        { key: 'greenLeft', label: 'Green Left Aspects' },
+                        { key: 'greenUTurn', label: 'Green U-Turn Aspects' },
+                        { key: 'greenRight', label: 'Green Right Aspects' },
+                        { key: 'pedestrianRed', label: 'Pedestrian Red' },
+                        { key: 'pedestrianGreen', label: 'Pedestrian Green' },
+                        { key: 'pushButton', label: 'Push Button' },
+                        { key: 'buzzer', label: 'Buzzer' }
+                    ];
+                    
+                    aspects.forEach(aspect => {
+                        csvContent += `${junctionId},`;
+                        csvContent += `"${junction.Name}",`;
+                        csvContent += `"${junction.Corridors_Name}",`;
+                        csvContent += `"${activity} - ${aspect.label}",`;
+                        csvContent += `pending,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `"",`;
+                        csvContent += `0,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `,`;
+                        csvContent += `"",`;
+                        csvContent += `\n`;
+                    });
+                } else {
+                    // Handle regular activities
                 csvContent += `${junctionId},`;
                 csvContent += `"${junction.Name}",`;
                 csvContent += `"${junction.Corridors_Name}",`;
@@ -1524,7 +2180,14 @@ window.exportAllData = async function() {
                 csvContent += `,`;
                 csvContent += `"",`;
                 csvContent += `0,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `,`;
+                    csvContent += `"",`;
                 csvContent += `\n`;
+                }
             });
         }
     });
@@ -1533,7 +2196,57 @@ window.exportAllData = async function() {
     showToast('Complete data exported successfully!', 'success');
 }
 
-// Download Report
+// Generate Quantity Comparison Text for CSV Export
+function generateQuantityComparisonText(quantities, activityName) {
+    if (!quantities) return '';
+    
+    const { rfp = 0, boq = 0, gfc = 0, rfi = 0, site = 0 } = quantities;
+    
+    // Convert to numbers for calculations
+    const rfpNum = parseFloat(rfp) || 0;
+    const boqNum = parseFloat(boq) || 0;
+    const gfcNum = parseFloat(gfc) || 0;
+    const rfiNum = parseFloat(rfi) || 0;
+    const siteNum = parseFloat(site) || 0;
+    
+    let comparisons = [];
+    
+    // RFI vs Site comparison (FIRST)
+    if (rfiNum > 0 && siteNum > 0) {
+        const rfiDiff = siteNum - rfiNum;
+        const rfiStatus = rfiDiff === 0 ? 'Match' : rfiDiff > 0 ? 'Excess' : 'Shortage';
+        comparisons.push(`${activityName} RFI vs Site: ${rfiStatus} ${Math.abs(rfiDiff)}`);
+    }
+    
+    // Proposed vs Site comparison (SECOND)
+    if (boqNum > 0 && siteNum > 0) {
+        const boqDiff = siteNum - boqNum;
+        const boqStatus = boqDiff === 0 ? 'Match' : boqDiff > 0 ? 'Excess' : 'Shortage';
+        comparisons.push(`${activityName} Proposed vs Site: ${boqStatus} ${Math.abs(boqDiff)}`);
+    }
+    
+    return comparisons.join('; ');
+}
+
+// Get Aspect Label for CSV Export
+function getAspectLabel(aspectKey) {
+    const aspectLabels = {
+        'redBall': 'Red Ball Aspects',
+        'redArrow': 'Red Arrow Aspects',
+        'amberBall': 'Amber Ball Aspects',
+        'amberArrow': 'Amber Arrow Aspects',
+        'greenBall': 'Green Ball Aspects',
+        'greenLeft': 'Green Left Aspects',
+        'greenUTurn': 'Green U-Turn Aspects',
+        'greenRight': 'Green Right Aspects',
+        'pedestrianRed': 'Pedestrian Red',
+        'pedestrianGreen': 'Pedestrian Green',
+        'pushButton': 'Push Button',
+        'buzzer': 'Buzzer'
+    };
+    
+    return aspectLabels[aspectKey] || aspectKey;
+}
 function downloadReport(content, filename) {
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
@@ -1639,31 +2352,60 @@ window.addEventListener('beforeunload', () => {
 // Global variable to track current activity
 let currentPhotoActivity = null;
 
-// Updated showPhotoOptions with better desktop support
+// Updated showPhotoOptions with modern modal approach
 window.showPhotoOptions = function(activity) {
-    // Check if device is mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     ('ontouchstart' in window && window.innerWidth <= 768);
+    // Check if it's a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-        // Show modal for mobile
-        currentPhotoActivity = activity;
-        const modal = document.getElementById('photoOptionsModal');
-        if (modal) {
-            modal.style.display = 'block';
-        }
+        // For mobile devices, show a modern modal with buttons
+        const modalHTML = `
+            <div class="photo-options-modal" id="photo-options-modal" style="display: flex;">
+                <div class="photo-options-content">
+                    <div class="photo-options-title">Choose Photo Source</div>
+                    <button class="photo-option-btn" onclick="selectActivityPhotoSource('camera', '${activity.replace(/'/g, "\\'")}')">
+                        <span class="icon">📷</span>
+                        <span>Take Photo</span>
+                    </button>
+                    <button class="photo-option-btn" onclick="selectActivityPhotoSource('gallery', '${activity.replace(/'/g, "\\'")}')">
+                        <span class="icon">🖼️</span>
+                        <span>Choose from Gallery</span>
+                    </button>
+                    <button class="photo-cancel-btn" onclick="closePhotoOptionsModal()">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
     } else {
-        // Direct gallery access for desktop
-        const input = document.getElementById(`photo-gallery-${activity.replace(/\s+/g, '-')}`);
-        if (input) {
-            input.click();
+        // For desktop/laptop, directly open file picker
+        const galleryInput = document.getElementById(`photo-gallery-${activity.replace(/\s+/g, '-')}`);
+        if (galleryInput) {
+            galleryInput.click();
         }
     }
+}
+
+// Select Activity Photo Source
+window.selectActivityPhotoSource = function(source, activity) {
+    const cameraInput = document.getElementById(`photo-camera-${activity.replace(/\s+/g, '-')}`);
+    const galleryInput = document.getElementById(`photo-gallery-${activity.replace(/\s+/g, '-')}`);
+    
+    if (source === 'camera' && cameraInput) {
+        cameraInput.click();
+    } else if (source === 'gallery' && galleryInput) {
+        galleryInput.click();
+    }
+    
+    // Close the modal
+    closePhotoOptionsModal();
 }
 
 // Photo preview variables
 let currentPreviewActivity = null;
 let currentPreviewIndex = null;
+let currentPreviewType = null;
 
 // Open photo preview
 window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
@@ -1691,9 +2433,10 @@ window.closePhotoPreview = function() {
     if (confirmModal) {
         confirmModal.style.display = 'none';
     }
-    
+
     currentPreviewActivity = null;
     currentPreviewIndex = null;
+    currentPreviewType = null;
 }
 
 // Confirm photo delete - improved version
@@ -1718,18 +2461,23 @@ window.confirmPhotoDelete = function() {
 
 // Execute photo delete
 window.executePhotoDelete = async function() {
-    console.log('Executing delete for:', currentPreviewActivity, currentPreviewIndex); // Debug
+    console.log('Executing delete for:', currentPreviewActivity, currentPreviewIndex, currentPreviewType); // Debug
     
     if (currentPreviewActivity !== null && currentPreviewIndex !== null) {
         try {
-            await removeActivityPhoto(currentPreviewActivity, currentPreviewIndex);
+            const junctionId = appState.selectedJunction.Location_Id;
+            
+                // Delete from general activity photos
+                await removeActivityPhoto(currentPreviewActivity, currentPreviewIndex);
+                showToast('Photo deleted successfully', 'success');
+            
             cancelPhotoDelete();
             
             // Reset preview variables
             currentPreviewActivity = null;
             currentPreviewIndex = null;
+            currentPreviewType = null;
             
-            showToast('Photo deleted successfully', 'success');
         } catch (error) {
             console.error('Error deleting photo:', error);
             showToast('Error deleting photo', 'error');
@@ -1750,6 +2498,7 @@ window.cancelPhotoDelete = function() {
     // Don't reopen preview, just reset
     currentPreviewActivity = null;
     currentPreviewIndex = null;
+    currentPreviewType = null;
 }
 
 // Close modals when clicking outside
@@ -1849,12 +2598,18 @@ let dragStart = { x: 0, y: 0 };
 let imageOffset = { x: 0, y: 0 };
 
 // Open photo preview with zoom functionality
-window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
+window.openPhotoPreview = function(activity, photoIndex, photoSrc, type = 'general') {
+    console.log('openPhotoPreview called:', { activity, photoIndex, photoSrc, type });
+    
     currentPreviewActivity = activity;
     currentPreviewIndex = photoIndex;
+    currentPreviewType = type;
     
     const modal = document.getElementById('photoPreviewModal');
     const image = document.getElementById('photoPreviewImage');
+    
+    console.log('Modal found:', !!modal);
+    console.log('Image found:', !!image);
     
     if (modal && image) {
         image.src = photoSrc;
@@ -1867,6 +2622,10 @@ window.openPhotoPreview = function(activity, photoIndex, photoSrc) {
         
         // Add drag functionality
         setupImageDrag(image);
+        
+        console.log('Photo preview opened successfully');
+    } else {
+        console.error('Modal or image element not found');
     }
 }
 
@@ -1979,6 +2738,507 @@ function setupImageDrag(image) {
             zoomPhoto('out');
         }
     });
+}
+
+// Generate Quantity Fields based on Activity Type
+function generateQuantityFields(activity, activityData) {
+    if (activity === 'Poles Installation') {
+        return `
+            <div class="activity-table-section">
+                <div class="activity-table-header">
+                    <div class="activity-table-cell activity-label-header">Pole Type</div>
+                    <div class="activity-table-cell">📋 RFP</div>
+                    <div class="activity-table-cell">📄 Proposed</div>
+                    <div class="activity-table-cell">🏗️ GFC</div>
+                    <div class="activity-table-cell">📝 RFI</div>
+                    <div class="activity-table-cell">📍 Site</div>
+                </div>
+                <div class="activity-table-row">
+                    <div class="activity-table-cell activity-label">
+                        <span class="activity-icon">🏗️</span>
+                        <span class="activity-name">Standard Pole</span>
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.standard?.rfp || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'standard', 'rfp', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.standard?.boq || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'standard', 'boq', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.standard?.gfc || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'standard', 'gfc', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.standard?.rfi || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'standard', 'rfi', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact site-input" 
+                               placeholder="0"
+                               value="${activityData.quantities?.standard?.site || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'standard', 'site', this.value)"
+                               min="0">
+                    </div>
+                </div>
+                <div class="activity-table-row">
+                    <div class="activity-table-cell activity-label">
+                        <span class="activity-icon">🏗️</span>
+                        <span class="activity-name">Cantilever Pole</span>
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.cantilever?.rfp || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'cantilever', 'rfp', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.cantilever?.boq || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'cantilever', 'boq', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.cantilever?.gfc || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'cantilever', 'gfc', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.cantilever?.rfi || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'cantilever', 'rfi', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact site-input" 
+                               placeholder="0"
+                               value="${activityData.quantities?.cantilever?.site || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'cantilever', 'site', this.value)"
+                               min="0">
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (activity === 'Aspects Installation') {
+        const aspects = [
+            { key: 'redBall', label: 'Red Ball Aspects', icon: '🔴' },
+            { key: 'redArrow', label: 'Red Arrow Aspects', icon: '🔴' },
+            { key: 'amberBall', label: 'Amber Ball Aspects', icon: '🟡' },
+            { key: 'amberArrow', label: 'Amber Arrow Aspects', icon: '🟡' },
+            { key: 'greenBall', label: 'Green Ball Aspects', icon: '🟢' },
+            { key: 'greenLeft', label: 'Green Left Aspects', icon: '🟢' },
+            { key: 'greenUTurn', label: 'Green U-Turn Aspects', icon: '🟢' },
+            { key: 'greenRight', label: 'Green Right Aspects', icon: '🟢' },
+            { key: 'pedestrianRed', label: 'Pedestrian Red', icon: '🚶‍♂️' },
+            { key: 'pedestrianGreen', label: 'Pedestrian Green', icon: '🚶‍♂️' },
+            { key: 'pushButton', label: 'Push Button', icon: '🔘' },
+            { key: 'buzzer', label: 'Buzzer', icon: '🔊' }
+        ];
+        
+        return `
+            <div class="aspect-table-section">
+                <div class="aspect-table-header">
+                    <div class="aspect-table-cell aspect-label-header">Aspect Type</div>
+                    <div class="aspect-table-cell">📋 RFP</div>
+                    <div class="aspect-table-cell">📄 Proposed</div>
+                    <div class="aspect-table-cell">🏗️ GFC</div>
+                    <div class="aspect-table-cell">📝 RFI</div>
+                    <div class="aspect-table-cell">📍 Site</div>
+                </div>
+                ${aspects.map(aspect => `
+                    <div class="aspect-table-row">
+                        <div class="aspect-table-cell aspect-label">
+                            <span class="aspect-icon">${aspect.icon}</span>
+                            <span class="aspect-name">${aspect.label}</span>
+                        </div>
+                        <div class="aspect-table-cell">
+                            <input type="number" 
+                                   class="quantity-input compact" 
+                                   placeholder="0"
+                                   value="${activityData.quantities?.[aspect.key]?.rfp || ''}"
+                                   onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', '${aspect.key}', 'rfp', this.value)"
+                                   min="0">
+                        </div>
+                        <div class="aspect-table-cell">
+                            <input type="number" 
+                                   class="quantity-input compact" 
+                                   placeholder="0"
+                                   value="${activityData.quantities?.[aspect.key]?.boq || ''}"
+                                   onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', '${aspect.key}', 'boq', this.value)"
+                                   min="0">
+                        </div>
+                        <div class="aspect-table-cell">
+                            <input type="number" 
+                                   class="quantity-input compact" 
+                                   placeholder="0"
+                                   value="${activityData.quantities?.[aspect.key]?.gfc || ''}"
+                                   onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', '${aspect.key}', 'gfc', this.value)"
+                                   min="0">
+                        </div>
+                        <div class="aspect-table-cell">
+                            <input type="number" 
+                                   class="quantity-input compact" 
+                                   placeholder="0"
+                                   value="${activityData.quantities?.[aspect.key]?.rfi || ''}"
+                                   onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', '${aspect.key}', 'rfi', this.value)"
+                                   min="0">
+                        </div>
+                        <div class="aspect-table-cell">
+                            <input type="number" 
+                                   class="quantity-input compact site-input" 
+                                   placeholder="0"
+                                   value="${activityData.quantities?.[aspect.key]?.site || ''}"
+                                   onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', '${aspect.key}', 'site', this.value)"
+                                   min="0">
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else {
+        // Default table layout for other activities
+        return `
+            <div class="activity-table-section">
+                <div class="activity-table-header">
+                    <div class="activity-table-cell activity-label-header">Activity Type</div>
+                    <div class="activity-table-cell">📋 RFP</div>
+                    <div class="activity-table-cell">📄 Proposed</div>
+                    <div class="activity-table-cell">🏗️ GFC</div>
+                    <div class="activity-table-cell">📝 RFI</div>
+                    <div class="activity-table-cell">📍 Site</div>
+                </div>
+                <div class="activity-table-row">
+                    <div class="activity-table-cell activity-label">
+                        <span class="activity-icon">📋</span>
+                        <span class="activity-name">${activity}</span>
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.rfp || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'rfp', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.boq || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'boq', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.gfc || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'gfc', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact" 
+                               placeholder="0"
+                               value="${activityData.quantities?.rfi || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'rfi', this.value)"
+                               min="0">
+                    </div>
+                    <div class="activity-table-cell">
+                        <input type="number" 
+                               class="quantity-input compact site-input" 
+                               placeholder="0"
+                               value="${activityData.quantities?.site || ''}"
+                               onchange="updateActivityQuantity('${activity.replace(/'/g, "\\'")}', 'site', this.value)"
+                               min="0">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+// Update Activity Quantity
+window.updateActivityQuantity = async function(activity, category, quantityType, value) {
+    if (!appState.selectedJunction) return;
+    
+    const junctionId = appState.selectedJunction.Location_Id;
+    
+    if (!appState.junctionData[junctionId].activities[activity].quantities) {
+        appState.junctionData[junctionId].activities[activity].quantities = {};
+    }
+    
+    // Handle different activity types
+    if (activity === 'Poles Installation') {
+        // For pole installation, category is 'standard' or 'cantilever'
+        if (!appState.junctionData[junctionId].activities[activity].quantities[category]) {
+            appState.junctionData[junctionId].activities[activity].quantities[category] = {};
+        }
+        appState.junctionData[junctionId].activities[activity].quantities[category][quantityType] = value;
+    } else if (activity === 'Aspects Installation') {
+        // For aspect installation, category is the aspect key (e.g., 'redBall', 'greenLeft')
+        if (!appState.junctionData[junctionId].activities[activity].quantities[category]) {
+            appState.junctionData[junctionId].activities[activity].quantities[category] = {};
+        }
+        appState.junctionData[junctionId].activities[activity].quantities[category][quantityType] = value;
+    } else {
+        // For other activities, use the old structure
+        appState.junctionData[junctionId].activities[activity].quantities[quantityType] = value;
+    }
+    
+    appState.junctionData[junctionId].lastUpdated = new Date().toISOString();
+    
+    // Update the quantity summary
+    const summaryElement = document.getElementById(`quantity-summary-${activity.replace(/\s+/g, '-')}`);
+    if (summaryElement) {
+        summaryElement.innerHTML = generateQuantitySummary(appState.junctionData[junctionId].activities[activity].quantities, activity);
+    }
+    
+    await saveToFirestore(junctionId);
+}
+
+// Generate Quantity Summary
+function generateQuantitySummary(quantities, activity) {
+    if (!quantities) return '<div class="no-quantities">No quantities entered yet</div>';
+    
+    if (activity === 'Poles Installation') {
+        return generatePoleQuantitySummary(quantities);
+    } else if (activity === 'Aspects Installation') {
+        return generateAspectQuantitySummary(quantities);
+    } else {
+        return generateDefaultQuantitySummary(quantities);
+    }
+}
+
+// Generate Pole Installation Summary
+function generatePoleQuantitySummary(quantities) {
+    let summaryHTML = '<div class="quantity-comparison">';
+    
+    // Standard Pole Summary
+    if (quantities.standard) {
+        const { rfp = 0, boq = 0, gfc = 0, rfi = 0, site = 0 } = quantities.standard;
+        const rfpNum = parseFloat(rfp) || 0;
+        const boqNum = parseFloat(boq) || 0;
+        const gfcNum = parseFloat(gfc) || 0;
+        const rfiNum = parseFloat(rfi) || 0;
+        const siteNum = parseFloat(site) || 0;
+        
+        summaryHTML += '<div class="pole-category-summary">';
+        summaryHTML += '<h6>🏗️ Standard Pole</h6>';
+        
+        // RFI vs Site comparison (FIRST)
+        if (rfiNum > 0 && siteNum > 0) {
+            const rfiDiff = siteNum - rfiNum;
+            const rfiStatus = rfiDiff === 0 ? 'match' : rfiDiff > 0 ? 'excess' : 'shortage';
+            const rfiIcon = rfiDiff === 0 ? '✅' : rfiDiff > 0 ? '⚠️' : '❌';
+            summaryHTML += `
+                <div class="comparison-item ${rfiStatus}">
+                    <span class="comparison-label">RFI vs Site:</span>
+                    <span class="comparison-value">${rfiIcon} ${Math.abs(rfiDiff)} ${rfiDiff > 0 ? 'excess' : 'shortage'}</span>
+                </div>
+            `;
+        }
+        
+        // Proposed vs Site comparison (SECOND)
+        if (boqNum > 0 && siteNum > 0) {
+            const boqDiff = siteNum - boqNum;
+            const boqStatus = boqDiff === 0 ? 'match' : boqDiff > 0 ? 'excess' : 'shortage';
+            const boqIcon = boqDiff === 0 ? '✅' : boqDiff > 0 ? '⚠️' : '❌';
+            summaryHTML += `
+                <div class="comparison-item ${boqStatus}">
+                    <span class="comparison-label">Proposed vs Site:</span>
+                    <span class="comparison-value">${boqIcon} ${Math.abs(boqDiff)} ${boqDiff > 0 ? 'excess' : 'shortage'}</span>
+                </div>
+            `;
+        }
+        
+        summaryHTML += '</div>';
+    }
+    
+    // Cantilever Pole Summary
+    if (quantities.cantilever) {
+        const { rfp = 0, boq = 0, gfc = 0, rfi = 0, site = 0 } = quantities.cantilever;
+        const rfpNum = parseFloat(rfp) || 0;
+        const boqNum = parseFloat(boq) || 0;
+        const gfcNum = parseFloat(gfc) || 0;
+        const rfiNum = parseFloat(rfi) || 0;
+        const siteNum = parseFloat(site) || 0;
+        
+        summaryHTML += '<div class="pole-category-summary">';
+        summaryHTML += '<h6>🏗️ Cantilever Pole</h6>';
+        
+        // RFI vs Site comparison (FIRST)
+        if (rfiNum > 0 && siteNum > 0) {
+            const rfiDiff = siteNum - rfiNum;
+            const rfiStatus = rfiDiff === 0 ? 'match' : rfiDiff > 0 ? 'excess' : 'shortage';
+            const rfiIcon = rfiDiff === 0 ? '✅' : rfiDiff > 0 ? '⚠️' : '❌';
+            summaryHTML += `
+                <div class="comparison-item ${rfiStatus}">
+                    <span class="comparison-label">RFI vs Site:</span>
+                    <span class="comparison-value">${rfiIcon} ${Math.abs(rfiDiff)} ${rfiDiff > 0 ? 'excess' : 'shortage'}</span>
+                </div>
+            `;
+        }
+        
+        // Proposed vs Site comparison (SECOND)
+        if (boqNum > 0 && siteNum > 0) {
+            const boqDiff = siteNum - boqNum;
+            const boqStatus = boqDiff === 0 ? 'match' : boqDiff > 0 ? 'excess' : 'shortage';
+            const boqIcon = boqDiff === 0 ? '✅' : boqDiff > 0 ? '⚠️' : '❌';
+            summaryHTML += `
+                <div class="comparison-item ${boqStatus}">
+                    <span class="comparison-label">Proposed vs Site:</span>
+                    <span class="comparison-value">${boqIcon} ${Math.abs(boqDiff)} ${boqDiff > 0 ? 'excess' : 'shortage'}</span>
+                </div>
+            `;
+        }
+        
+        summaryHTML += '</div>';
+    }
+    
+    summaryHTML += '</div>';
+    return summaryHTML;
+}
+
+// Generate Aspect Installation Summary
+function generateAspectQuantitySummary(quantities) {
+    let summaryHTML = '<div class="quantity-comparison">';
+    
+    const aspects = [
+        { key: 'redBall', label: 'Red Ball', icon: '🔴' },
+        { key: 'redArrow', label: 'Red Arrow', icon: '🔴' },
+        { key: 'amberBall', label: 'Amber Ball', icon: '🟡' },
+        { key: 'amberArrow', label: 'Amber Arrow', icon: '🟡' },
+        { key: 'greenBall', label: 'Green Ball', icon: '🟢' },
+        { key: 'greenLeft', label: 'Green Left', icon: '🟢' },
+        { key: 'greenUTurn', label: 'Green U-Turn', icon: '🟢' },
+        { key: 'greenRight', label: 'Green Right', icon: '🟢' },
+        { key: 'pedestrianRed', label: 'Pedestrian Red', icon: '🚶‍♂️' },
+        { key: 'pedestrianGreen', label: 'Pedestrian Green', icon: '🚶‍♂️' },
+        { key: 'pushButton', label: 'Push Button', icon: '🔘' },
+        { key: 'buzzer', label: 'Buzzer', icon: '🔊' }
+    ];
+    
+    aspects.forEach(aspect => {
+        if (quantities[aspect.key]) {
+            const { rfp = 0, boq = 0, gfc = 0, rfi = 0, site = 0 } = quantities[aspect.key];
+            const rfpNum = parseFloat(rfp) || 0;
+            const boqNum = parseFloat(boq) || 0;
+            const gfcNum = parseFloat(gfc) || 0;
+            const rfiNum = parseFloat(rfi) || 0;
+            const siteNum = parseFloat(site) || 0;
+            
+            // Only show if there are quantities to compare
+            if ((rfiNum > 0 && siteNum > 0) || (boqNum > 0 && siteNum > 0)) {
+                summaryHTML += `<div class="aspect-summary-group">`;
+                summaryHTML += `<h6>${aspect.icon} ${aspect.label}</h6>`;
+                
+                // RFI vs Site comparison (FIRST)
+                if (rfiNum > 0 && siteNum > 0) {
+                    const rfiDiff = siteNum - rfiNum;
+                    const rfiStatus = rfiDiff === 0 ? 'match' : rfiDiff > 0 ? 'excess' : 'shortage';
+                    const rfiIcon = rfiDiff === 0 ? '✅' : rfiDiff > 0 ? '⚠️' : '❌';
+                    summaryHTML += `
+                        <div class="comparison-item ${rfiStatus}">
+                            <span class="comparison-label">RFI vs Site:</span>
+                            <span class="comparison-value">${rfiIcon} ${Math.abs(rfiDiff)} ${rfiDiff > 0 ? 'excess' : 'shortage'}</span>
+                        </div>
+                    `;
+                }
+                
+                // Proposed vs Site comparison (SECOND)
+                if (boqNum > 0 && siteNum > 0) {
+                    const boqDiff = siteNum - boqNum;
+                    const boqStatus = boqDiff === 0 ? 'match' : boqDiff > 0 ? 'excess' : 'shortage';
+                    const boqIcon = boqDiff === 0 ? '✅' : boqDiff > 0 ? '⚠️' : '❌';
+                    summaryHTML += `
+                        <div class="comparison-item ${boqStatus}">
+                            <span class="comparison-label">Proposed vs Site:</span>
+                            <span class="comparison-value">${boqIcon} ${Math.abs(boqDiff)} ${boqDiff > 0 ? 'excess' : 'shortage'}</span>
+                        </div>
+                    `;
+                }
+                
+                summaryHTML += `</div>`;
+            }
+        }
+    });
+    
+    summaryHTML += '</div>';
+    return summaryHTML;
+}
+
+// Generate Default Quantity Summary (for other activities)
+function generateDefaultQuantitySummary(quantities) {
+    if (!quantities) return '<div class="no-quantities">No quantities entered yet</div>';
+    
+    const { rfp = 0, boq = 0, gfc = 0, rfi = 0, site = 0 } = quantities;
+    
+    // Convert to numbers for calculations
+    const rfpNum = parseFloat(rfp) || 0;
+    const boqNum = parseFloat(boq) || 0;
+    const gfcNum = parseFloat(gfc) || 0;
+    const rfiNum = parseFloat(rfi) || 0;
+    const siteNum = parseFloat(site) || 0;
+    
+    let summaryHTML = '<div class="quantity-comparison">';
+    
+    // RFI vs Site comparison (FIRST)
+    if (rfiNum > 0 && siteNum > 0) {
+        const rfiDiff = siteNum - rfiNum;
+        const rfiStatus = rfiDiff === 0 ? 'match' : rfiDiff > 0 ? 'excess' : 'shortage';
+        const rfiIcon = rfiDiff === 0 ? '✅' : rfiDiff > 0 ? '⚠️' : '❌';
+        summaryHTML += `
+            <div class="comparison-item ${rfiStatus}">
+                <span class="comparison-label">RFI vs Site:</span>
+                <span class="comparison-value">${rfiIcon} ${Math.abs(rfiDiff)} ${rfiDiff > 0 ? 'excess' : 'shortage'}</span>
+            </div>
+        `;
+    }
+    
+    // Proposed vs Site comparison (SECOND)
+    if (boqNum > 0 && siteNum > 0) {
+        const boqDiff = siteNum - boqNum;
+        const boqStatus = boqDiff === 0 ? 'match' : boqDiff > 0 ? 'excess' : 'shortage';
+        const boqIcon = boqDiff === 0 ? '✅' : boqDiff > 0 ? '⚠️' : '❌';
+        summaryHTML += `
+            <div class="comparison-item ${boqStatus}">
+                <span class="comparison-label">Proposed vs Site:</span>
+                <span class="comparison-value">${boqIcon} ${Math.abs(boqDiff)} ${boqDiff > 0 ? 'excess' : 'shortage'}</span>
+            </div>
+        `;
+    }
+    
+    summaryHTML += '</div>';
+    
+    return summaryHTML;
 }
 
 // END OF app.js - Complete file
