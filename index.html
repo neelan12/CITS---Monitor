@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CITS - Site Activity Monitor</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">CI</div>
+                    <div class="app-title">
+                        <h1>CITS Monitor</h1>
+                        <span>Site Activity Tracker</span>
+                    </div>
+                </div>
+                <div class="sync-status">
+                    <span class="sync-indicator"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Offline Mode Indicator -->
+        <div class="offline-mode" id="offlineIndicator">
+            📵 Offline Mode - Data will sync when connection is restored
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="junction">📍 Junction</button>
+            <button class="nav-tab" data-tab="activities">✅ Activities</button>
+            <button class="nav-tab" data-tab="summary">📊 Summary</button>
+            <button class="nav-tab" data-tab="reports">📑 Reports</button>
+        </div>
+
+        <!-- Junction Selection Tab -->
+        <div class="tab-content active" id="junction-tab">
+            <div class="junction-selection">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" id="junctionSearch" 
+                           placeholder="Search junction by name or ID...">
+                </div>
+                <div class="junction-list" id="junctionList"></div>
+            </div>
+
+            <div class="selected-junction-info" id="selectedJunctionInfo">
+                <h3 id="selectedJunctionName">No Junction Selected</h3>
+                <p id="selectedJunctionDetails"></p>
+            </div>
+
+            <div id="map"></div>
+        </div>
+
+        <!-- Activities Tab -->
+        <div class="tab-content" id="activities-tab">
+            <div class="current-junction-banner" id="currentJunctionBanner" style="display: none;">
+                <h3>Currently Inspecting:</h3>
+                <div class="junction-name" id="currentJunctionName">-</div>
+                <div class="junction-details" id="currentJunctionDetails">-</div>
+            </div>
+
+            <!-- Date Selection Bar -->
+            <div class="date-selection-bar">
+                <label for="activityDate">📅 Activity Date:</label>
+                <input type="date" id="activityDate" class="date-input">
+                <button class="btn-today" onclick="setToday()">Today</button>
+            </div>
+
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="completedCount">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="progressCount">0</div>
+                    <div class="stat-label">In Progress</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingCount">0</div>
+                    <div class="stat-label">Yet to Start</div>
+                </div>
+            </div>
+
+            <div class="activity-section" id="activitySection"></div>
+        </div>
+
+        <!-- Summary Tab -->
+        <div class="tab-content" id="summary-tab">
+            <div class="summary-section">
+                <div class="overall-stats">
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="totalJunctions">165</div>
+                        <div class="stat-label">Total Junctions</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="completedJunctions">0</div>
+                        <div class="stat-label">Fully Completed</div>
+                        <div class="stat-sublabel" id="completedPercentage">0%</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-value" id="inProgressJunctions">0</div>
+                        <div class="stat-label">In Progress</div>
+                        <div class="stat-sublabel" id="progressPercentage">0%</div>
+                    </div>
+                    <div class="stat-card gray">
+                        <div class="stat-value" id="notStartedJunctions">165</div>
+                        <div class="stat-label">Not Started</div>
+                        <div class="stat-sublabel" id="notStartedPercentage">100%</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar-title">Overall Project Progress</div>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="overallProgress" style="width: 0%">0%</div>
+                    </div>
+                </div>
+
+                <div class="junction-summary-list">
+                    <div class="junction-summary-header">Junction-wise Progress (All 165 Junctions)</div>
+                    <div id="junctionSummaryList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-content" id="reports-tab">
+            <div class="reports-section">
+                <!-- Date Range Selection for Reports -->
+                <div class="report-date-selection">
+                    <h3>📅 Select Date Range for Reports</h3>
+                    <div class="date-range-inputs">
+                        <div class="date-input-group">
+                            <label>From Date:</label>
+                            <input type="date" id="reportFromDate" class="date-input">
+                        </div>
+                        <div class="date-input-group">
+                            <label>To Date:</label>
+                            <input type="date" id="reportToDate" class="date-input">
+                        </div>
+                        <button class="btn-today" onclick="setReportDatesToday()">Today</button>
+                        <button class="btn-today" onclick="setReportDatesWeek()">This Week</button>
+                    </div>
+                </div>
+                
+                <div class="report-card" onclick="generateDailyReport()">
+                    <div class="report-icon">📅</div>
+                    <div class="report-title">Daily Report</div>
+                    <div class="report-description">
+                        Generate inspection report for selected date range
+                    </div>
+                </div>
+                <div class="report-card" onclick="generateWeeklyReport()">
+                    <div class="report-icon">📊</div>
+                    <div class="report-title">Weekly Summary</div>
+                    <div class="report-description">
+                        View progress summary for selected week
+                    </div>
+                </div>
+                <div class="report-card" onclick="exportAllData()">
+                    <div class="report-icon">💾</div>
+                    <div class="report-title">Export All Data</div>
+                    <div class="report-description">
+                        Download complete inspection data with date stamps
+                    </div>
+                </div>
+            </div>
+        </div>
+       <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="saveDraft()">💾 Save Draft</button>
+            <button class="btn btn-primary" onclick="submitInspection()">📤 Submit Report</button>
+        </div>
+
+        <!-- Toast Notification -->
+        <div class="toast" id="toast"></div>
+
+        <!-- PWA Install Button -->
+        <button class="install-btn" id="installBtn">📲 Install App</button>
+
+        <!-- Loading Spinner -->
+        <div class="spinner" id="spinner"></div>
+    </div>
+
+    <!-- Photo Options Modal -->
+    <div class="photo-options-modal" id="photoOptionsModal">
+        <div class="photo-options-content">
+            <div class="photo-options-title">Add Photo</div>
+            <button class="photo-option-btn" onclick="selectPhotoSource('camera')">
+                <span class="icon">📷</span>
+                <span>Take Photo</span>
+            </button>
+            <button class="photo-option-btn" onclick="selectPhotoSource('gallery')">
+                <span class="icon">🖼️</span>
+                <span>Choose from Gallery</span>
+            </button>
+            <button class="photo-cancel-btn" onclick="hidePhotoOptions()">Cancel</button>
+        </div>
+    </div>
+
+<!-- Photo Preview Modal -->
+<div class="photo-preview-modal" id="photoPreviewModal">
+    <div class="photo-preview-content">
+        <div class="photo-preview-header">
+            <div class="photo-preview-title">Photo Preview</div>
+            <button class="photo-preview-close" onclick="closePhotoPreview()">×</button>
+        </div>
+        <div class="photo-preview-image-container" id="photoImageContainer">
+            <img id="photoPreviewImage" class="photo-preview-image" src="" alt="Preview">
+            <div class="photo-zoom-controls">
+                <button class="zoom-btn" onclick="zoomPhoto('out')">-</button>
+                <div class="zoom-level" id="zoomLevel">100%</div>
+                <button class="zoom-btn" onclick="zoomPhoto('in')">+</button>
+                <button class="zoom-btn" onclick="resetZoom()">⌂</button>
+            </div>
+        </div>
+        <div class="photo-preview-actions">
+            <button class="photo-delete-btn" onclick="confirmPhotoDelete()">🗑 Delete Photo</button>
+        </div>
+    </div>
+</div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="delete-confirmation-modal" id="deleteConfirmationModal">
+        <div class="delete-confirmation-content">
+            <div class="delete-confirmation-title">Delete Photo?</div>
+            <div class="delete-confirmation-message">Are you sure you want to delete this photo? This action cannot be undone.</div>
+            <div class="delete-confirmation-actions">
+                <button class="confirm-delete-btn" onclick="executePhotoDelete()">Yes, Delete</button>
+                <button class="cancel-delete-btn" onclick="cancelPhotoDelete()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Firebase SDK v9 Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Junction Data -->
+    <script src="junction-data.js"></script>
+    <!-- DocX Library for Word Document Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.4.1/build/index.js"></script>
+    
+    <!-- Main Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
